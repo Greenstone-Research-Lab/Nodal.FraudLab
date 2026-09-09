@@ -3,6 +3,10 @@ using Nodal.FraudLab.Web.Setup;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
