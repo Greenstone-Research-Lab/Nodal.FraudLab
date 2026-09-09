@@ -1,11 +1,19 @@
+using Microsoft.AspNetCore.DataProtection;
 using Nodal.FraudLab.Web.Components;
 using Nodal.FraudLab.Web.Setup;
 
 var builder = WebApplication.CreateBuilder(args);
+var dataProtectionPath = Path.Combine(builder.Environment.ContentRootPath, ".local", "data-protection-keys");
+
+Directory.CreateDirectory(dataProtectionPath);
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath))
+    .SetApplicationName("Nodal.FraudLab");
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
