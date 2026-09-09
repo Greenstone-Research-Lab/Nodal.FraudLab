@@ -1,0 +1,5 @@
+Id,CustomerId,AccountType,OpenedOn,CurrencyCode
+account-001,customer-001,Current,2025-11-12,EUR
+account-002,customer-002,Current,2024-06-03,EUR
+account-003,customer-003,Current,2026-01-28,EUR
+account-004,customer-004,Current,2025-09-17,EUR

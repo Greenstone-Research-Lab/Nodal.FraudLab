@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.DataProtection;
+using Nodal.FraudLab.Web.Application.Import;
 using Nodal.FraudLab.Web.Components;
 using Nodal.FraudLab.Web.Setup;
 
@@ -17,6 +18,7 @@ builder.Services.AddDataProtection()
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddSingleton<ICsvImportPreviewService, CsvImportPreviewService>();
 
 var app = builder.Build();
 var localGraph = app.Configuration.GetSection(LocalGraphOptions.SectionName).Get<LocalGraphOptions>()

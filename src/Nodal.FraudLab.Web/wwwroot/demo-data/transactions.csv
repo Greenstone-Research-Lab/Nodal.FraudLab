@@ -1,0 +1,6 @@
+Id,AccountId,MerchantId,Amount,CurrencyCode,OccurredAt,Status
+transaction-001,account-001,merchant-002,24.90,EUR,2026-09-01T08:12:00+00:00,Completed
+transaction-002,account-002,merchant-001,1250.00,EUR,2026-09-01T08:29:00+00:00,Completed
+transaction-003,account-003,merchant-003,9.99,EUR,2026-09-01T08:32:00+00:00,Completed
+transaction-004,account-001,merchant-004,640.00,EUR,2026-09-01T08:45:00+00:00,Completed
+transaction-005,account-003,merchant-001,1299.00,EUR,2026-09-01T08:47:00+00:00,Pending

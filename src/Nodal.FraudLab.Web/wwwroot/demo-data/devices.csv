@@ -1,0 +1,5 @@
+Id,DeviceType,OperatingSystem,TrustLevel
+device-001,Mobile,Android,Trusted
+device-002,Desktop,Windows,Trusted
+device-003,Mobile,iOS,New
+device-004,Mobile,Android,Observed

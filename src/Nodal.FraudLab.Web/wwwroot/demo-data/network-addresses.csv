@@ -1,0 +1,5 @@
+Id,CountryCode,NetworkType
+network-001,EE,Residential
+network-002,EE,Corporate
+network-003,FI,Mobile
+network-004,LV,Cloud
