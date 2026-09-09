@@ -1,0 +1,41 @@
+﻿@page "/"
+
+<PageTitle>FraudLab overview</PageTitle>
+
+<section class="page-heading">
+    <p class="eyebrow">OBSERVATORY / FRAUD DETECTION</p>
+    <h1>Evidence-first fraud investigation.</h1>
+    <p>
+        This public starter contains no graph provider, source connection, or
+        detection logic yet. It is the clean UI and API boundary that will host
+        those capabilities in the next implementation slice.
+    </p>
+</section>
+
+<section class="metric-grid" aria-label="FraudLab placeholders">
+    <article>
+        <span>Connected sources</span>
+        <strong>0</strong>
+        <small>Graph connection is not configured.</small>
+    </article>
+    <article>
+        <span>Open fraud cases</span>
+        <strong>—</strong>
+        <small>Awaiting the first detection run.</small>
+    </article>
+    <article>
+        <span>Evidence paths</span>
+        <strong>—</strong>
+        <small>Will be supplied by graph analysis.</small>
+    </article>
+</section>
+
+<section class="next-step">
+    <h2>Implementation sequence</h2>
+    <ol>
+        <li>Connect a synthetic financial source.</li>
+        <li>Map source entities to the fraud domain model.</li>
+        <li>Build graph evidence and deterministic detection rules.</li>
+        <li>Render a case narrative with inspectable evidence.</li>
+    </ol>
+</section>

@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Nodal.FraudLab.Web/Nodal.FraudLab.Web.csproj" />
+  </Folder>
+</Solution>

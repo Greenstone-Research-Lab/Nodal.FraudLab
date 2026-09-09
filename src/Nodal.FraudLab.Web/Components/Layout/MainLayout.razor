@@ -1,0 +1,35 @@
+﻿@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <aside class="sidebar">
+        <a class="brand" href="/">
+            <span class="brand-mark">N</span>
+            <span>
+                <strong>Nodal FraudLab</strong>
+                <small>Graph fraud research</small>
+            </span>
+        </a>
+
+        <nav aria-label="Workspace navigation">
+            <a href="/">Overview</a>
+            <a href="/fraud-cases">Fraud cases</a>
+            <a href="/graph-evidence">Graph evidence</a>
+            <a href="/system-status">System status</a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span class="environment-badge">DEV TEMPLATE</span>
+            <p>No source is connected yet.</p>
+        </div>
+    </aside>
+
+    <main class="content">
+        @Body
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
