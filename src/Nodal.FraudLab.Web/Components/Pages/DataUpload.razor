@@ -7,54 +7,203 @@
 
 <section class="page-heading">
     <p class="eyebrow">SOURCE ONBOARDING</p>
-    <h1>Choose a model, then validate its CSV.</h1>
-    <p>Each upload has one explicit target model. FraudLab checks the expected header, C# value types, required properties, unique identifiers, and model-specific consistency rules before data can move into the graph.</p>
+    <h1>Inspect current data or stage a new CSV.</h1>
+    <p>Start from the data already available for a model, then use the separate upload flow when you want to validate a replacement or additional CSV.</p>
 </section>
 
 <section class="model-selector">
     <div>
         <label for="data-set">Target domain model</label>
-        <select id="data-set" @bind="selectedDataSet" @bind:after="ClearPreview">
+        <select id="data-set" @bind="selectedDataSet" @bind:after="HandleModelChangedAsync">
             @foreach (var model in models)
             {
                 <option value="@model.DataSet">@model.DisplayName</option>
             }
         </select>
     </div>
-    <p><strong>@selectedModel.DisplayName</strong> — Upload only a CSV shaped for this model. The selected model cannot be inferred or changed by the file.</p>
+    <p><strong>@selectedModel.DisplayName</strong> — The model determines both the current dataset view and the CSV contract accepted by the upload tab.</p>
 </section>
 
-<section class="upload-workspace">
-    <div class="upload-panel">
-        <h2>Upload @selectedModel.DisplayName CSV</h2>
-        <p>Choose one CSV file. Its header must match the property table exactly; column order is flexible.</p>
-        <InputFile OnChange="HandleUploadAsync" accept=".csv,text/csv" class="file-input" />
-        <div class="upload-actions">
-            <button class="primary-button" @onclick="LoadBundledDemoAsync" disabled="@isLoading">Load @selectedModel.DisplayName demo</button>
-            @if (preview is not null)
+<div class="data-tabs" role="tablist" aria-label="Data workspace">
+    <button class="data-tab @(activeTab == DataWorkspaceTab.CurrentData ? "data-tab--active" : string.Empty)" @onclick="ShowCurrentDataAsync" role="tab" aria-selected="@(activeTab == DataWorkspaceTab.CurrentData)">
+        Current data
+    </button>
+    <button class="data-tab @(activeTab == DataWorkspaceTab.Upload ? "data-tab--active" : string.Empty)" @onclick="ShowUpload" role="tab" aria-selected="@(activeTab == DataWorkspaceTab.Upload)">
+        Upload CSV
+    </button>
+</div>
+
+@if (activeTab == DataWorkspaceTab.CurrentData)
+{
+    <section class="current-data-panel">
+        <header>
+            <div>
+                <p class="eyebrow">CURRENT DATA</p>
+                <h2>@selectedModel.DisplayName CSV</h2>
+                <p>The read-only synthetic fixture currently packaged with FraudLab. It is the baseline data that will later be loaded into the graph.</p>
+            </div>
+            <button class="secondary-button" @onclick="LoadCurrentDataAsync" disabled="@isLoadingCurrent">Refresh data</button>
+        </header>
+
+        @if (isLoadingCurrent)
+        {
+            <p class="loading-message">Loading current CSV data…</p>
+        }
+        else if (currentDataPreview is not null)
+        {
+            <dl class="dataset-stats">
+                <div><dt>Source file</dt><dd>@currentDataPreview.FileName</dd></div>
+                <div><dt>Available rows</dt><dd>@currentDataPreview.TotalRows</dd></div>
+                <div><dt>Consistency issues</dt><dd>@currentDataPreview.Issues.Count</dd></div>
+            </dl>
+
+            @if (currentDataPreview.PreviewRows.Count > 0)
             {
-                <button class="secondary-button" @onclick="ClearPreview" disabled="@isLoading">Clear preview</button>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                @foreach (var column in currentDataPreview.Columns)
+                                {
+                                    <th>@column</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in currentDataPreview.PreviewRows)
+                            {
+                                <tr>
+                                    @foreach (var column in currentDataPreview.Columns)
+                                    {
+                                        <td>@row[column]</td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             }
-        </div>
-        <p class="upload-help">Maximum file size: 2 MB. This screen validates only the selected CSV. Cross-model reference checks run when the complete graph import set is submitted.</p>
-    </div>
 
-    <aside class="consistency-panel">
-        <h2>Consistency checks</h2>
-        <ul>
-            <li>Required headers are present and no unknown or duplicate headers exist.</li>
-            <li>Required values match their declared .NET data types.</li>
-            <li><code>Id</code> values are unique within the CSV file.</li>
-            <li>Transaction amounts are positive and timestamps include an offset.</li>
-        </ul>
-    </aside>
-</section>
+            @if (currentDataPreview.TotalRows > currentDataPreview.PreviewRows.Count)
+            {
+                <p class="upload-help">Showing the first @currentDataPreview.PreviewRows.Count rows of @currentDataPreview.TotalRows.</p>
+            }
+
+            @if (currentDataPreview.Issues.Count > 0)
+            {
+                <div class="validation-issues">
+                    <h3>Current data issues</h3>
+                    <ul>
+                        @foreach (var issue in currentDataPreview.Issues.Take(10))
+                        {
+                            <li>@(issue.RowNumber is null ? "File" : $"Row {issue.RowNumber}"): @issue.Message</li>
+                        }
+                    </ul>
+                </div>
+            }
+        }
+    </section>
+}
+else
+{
+    <section class="upload-workspace">
+        <div class="upload-panel">
+            <h2>Upload @selectedModel.DisplayName CSV</h2>
+            <p>Choose one CSV file. Its header must contain the selected model’s property names; column order is flexible.</p>
+            <InputFile OnChange="HandleUploadAsync" accept=".csv,text/csv" class="file-input" />
+            <div class="upload-actions">
+                <button class="primary-button" @onclick="LoadBundledDemoAsync" disabled="@isLoadingUpload">Validate bundled demo</button>
+                @if (uploadPreview is not null)
+                {
+                    <button class="secondary-button" @onclick="ClearUploadPreview" disabled="@isLoadingUpload">Clear preview</button>
+                }
+            </div>
+            <p class="upload-help">Maximum file size: 2 MB. A staged upload is validated in memory only. It does not replace current data and does not write to Neo4j.</p>
+        </div>
+
+        <aside class="consistency-panel">
+            <h2>Consistency checks</h2>
+            <ul>
+                <li>Required headers are present and no unknown or duplicate headers exist.</li>
+                <li>Required values match their declared .NET data types.</li>
+                <li><code>Id</code> values are unique within the CSV file.</li>
+                <li>Transaction amounts are positive and timestamps include an offset.</li>
+            </ul>
+        </aside>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(uploadStatusMessage))
+    {
+        <p class="upload-status" role="status">@uploadStatusMessage</p>
+    }
+
+    @if (uploadPreview is not null)
+    {
+        <section class="dataset-preview">
+            <header>
+                <div>
+                    <p class="eyebrow">STAGED UPLOAD</p>
+                    <h2>@uploadPreview.FileName</h2>
+                </div>
+                <span class="validation-state @(uploadPreview.IsReadyForImport ? "validation-state--ready" : "validation-state--review")">
+                    @(uploadPreview.IsReadyForImport ? "Schema and consistency checks passed" : "Needs review")
+                </span>
+            </header>
+
+            <dl class="dataset-stats">
+                <div><dt>Rows read</dt><dd>@uploadPreview.TotalRows</dd></div>
+                <div><dt>Valid rows</dt><dd>@uploadPreview.ValidRows</dd></div>
+                <div><dt>Row issues</dt><dd>@uploadPreview.InvalidRows</dd></div>
+            </dl>
+
+            @if (uploadPreview.PreviewRows.Count > 0)
+            {
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                @foreach (var column in uploadPreview.Columns)
+                                {
+                                    <th>@column</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in uploadPreview.PreviewRows)
+                            {
+                                <tr>
+                                    @foreach (var column in uploadPreview.Columns)
+                                    {
+                                        <td>@row[column]</td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            @if (uploadPreview.Issues.Count > 0)
+            {
+                <div class="validation-issues">
+                    <h3>Validation issues</h3>
+                    <ul>
+                        @foreach (var issue in uploadPreview.Issues.Take(10))
+                        {
+                            <li>@(issue.RowNumber is null ? "File" : $"Row {issue.RowNumber}"): @issue.Message</li>
+                        }
+                    </ul>
+                </div>
+            }
+        </section>
+    }
+}
 
 <section class="property-contract">
     <div>
         <p class="eyebrow">CSV CONTRACT</p>
         <h2>@selectedModel.DisplayName properties</h2>
-        <p>The column names below form the upload contract. This is the same contract used by the validator.</p>
+        <p>The same contract validates both the packaged current data and any staged upload.</p>
     </div>
     <div class="table-scroll">
         <table>
@@ -76,141 +225,120 @@
     </div>
 </section>
 
-@if (!string.IsNullOrWhiteSpace(statusMessage))
-{
-    <p class="upload-status" role="status">@statusMessage</p>
-}
-
-@if (preview is not null)
-{
-    <section class="dataset-preview">
-        <header>
-            <div>
-                <p class="eyebrow">@preview.DataSet</p>
-                <h2>@preview.FileName</h2>
-            </div>
-            <span class="validation-state @(preview.IsReadyForImport ? "validation-state--ready" : "validation-state--review")">
-                @(preview.IsReadyForImport ? "Schema and consistency checks passed" : "Needs review")
-            </span>
-        </header>
-
-        <dl class="dataset-stats">
-            <div><dt>Rows read</dt><dd>@preview.TotalRows</dd></div>
-            <div><dt>Valid rows</dt><dd>@preview.ValidRows</dd></div>
-            <div><dt>Row issues</dt><dd>@preview.InvalidRows</dd></div>
-        </dl>
-
-        @if (preview.PreviewRows.Count > 0)
-        {
-            <div class="table-scroll">
-                <table>
-                    <thead>
-                        <tr>
-                            @foreach (var column in preview.Columns)
-                            {
-                                <th>@column</th>
-                            }
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var row in preview.PreviewRows)
-                        {
-                            <tr>
-                                @foreach (var column in preview.Columns)
-                                {
-                                    <td>@row[column]</td>
-                                }
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-
-        @if (preview.Issues.Count > 0)
-        {
-            <div class="validation-issues">
-                <h3>Validation issues</h3>
-                <ul>
-                    @foreach (var issue in preview.Issues.Take(10))
-                    {
-                        <li>@(issue.RowNumber is null ? "File" : $"Row {issue.RowNumber}"): @issue.Message</li>
-                    }
-                </ul>
-                @if (preview.Issues.Count > 10)
-                {
-                    <p>Only the first ten issues are displayed.</p>
-                }
-            </div>
-        }
-    </section>
-}
-
 @code {
     private const long MaximumFileBytes = 2 * 1024 * 1024;
+    private const int CurrentDataRowLimit = 100;
     private IReadOnlyList<CsvModelDefinition> models = [];
-    private CsvDataSetPreview? preview;
+    private CsvDataSetPreview? currentDataPreview;
+    private CsvDataSetPreview? uploadPreview;
     private FraudDataSetKind selectedDataSet;
-    private bool isLoading;
-    private string? statusMessage;
+    private DataWorkspaceTab activeTab = DataWorkspaceTab.CurrentData;
+    private bool isLoadingCurrent;
+    private bool isLoadingUpload;
+    private string? uploadStatusMessage;
 
     private CsvModelDefinition selectedModel => models.Single(model => model.DataSet == selectedDataSet);
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         models = CsvImportPreviewService.SupportedModels;
         selectedDataSet = models[0].DataSet;
+        await LoadCurrentDataAsync();
     }
 
-    private async Task HandleUploadAsync(InputFileChangeEventArgs eventArgs)
+    private async Task HandleModelChangedAsync()
     {
-        isLoading = true;
-        statusMessage = null;
-        preview = null;
+        ClearUploadPreview();
+        await LoadCurrentDataAsync();
+    }
 
-        try
+    private async Task ShowCurrentDataAsync()
+    {
+        activeTab = DataWorkspaceTab.CurrentData;
+        if (currentDataPreview is null)
         {
-            var file = eventArgs.File;
-            await using var stream = file.OpenReadStream(MaximumFileBytes);
-            preview = await CsvImportPreviewService.PreviewAsync(stream, file.Name, selectedDataSet);
-            statusMessage = "The selected CSV was inspected in memory. No data has been persisted.";
-        }
-        catch (Exception exception)
-        {
-            statusMessage = $"The CSV file could not be inspected: {exception.Message}";
-        }
-        finally
-        {
-            isLoading = false;
+            await LoadCurrentDataAsync();
         }
     }
 
-    private async Task LoadBundledDemoAsync()
+    private void ShowUpload() => activeTab = DataWorkspaceTab.Upload;
+
+    private async Task LoadCurrentDataAsync()
     {
-        isLoading = true;
-        statusMessage = null;
-        preview = null;
+        isLoadingCurrent = true;
+        currentDataPreview = null;
 
         try
         {
             var path = Path.Combine(WebHostEnvironment.WebRootPath, "demo-data", selectedModel.DemoFileName);
             await using var stream = File.OpenRead(path);
-            preview = await CsvImportPreviewService.PreviewAsync(stream, selectedModel.DemoFileName, selectedDataSet);
-            statusMessage = "The selected model's bundled demo CSV was inspected successfully. No data has been persisted.";
-        }
-        catch (Exception exception)
-        {
-            statusMessage = $"The bundled demo data could not be loaded: {exception.Message}";
+            currentDataPreview = await CsvImportPreviewService.PreviewAsync(
+                stream,
+                selectedModel.DemoFileName,
+                selectedDataSet,
+                CurrentDataRowLimit);
         }
         finally
         {
-            isLoading = false;
+            isLoadingCurrent = false;
         }
     }
 
-    private void ClearPreview()
+    private async Task HandleUploadAsync(InputFileChangeEventArgs eventArgs)
     {
-        preview = null;
-        statusMessage = null;
+        isLoadingUpload = true;
+        uploadStatusMessage = null;
+        uploadPreview = null;
+
+        try
+        {
+            var file = eventArgs.File;
+            await using var stream = file.OpenReadStream(MaximumFileBytes);
+            uploadPreview = await CsvImportPreviewService.PreviewAsync(stream, file.Name, selectedDataSet);
+            uploadStatusMessage = "The selected CSV was inspected in memory. No data has been persisted.";
+        }
+        catch (Exception exception)
+        {
+            uploadStatusMessage = $"The CSV file could not be inspected: {exception.Message}";
+        }
+        finally
+        {
+            isLoadingUpload = false;
+        }
+    }
+
+    private async Task LoadBundledDemoAsync()
+    {
+        isLoadingUpload = true;
+        uploadStatusMessage = null;
+        uploadPreview = null;
+
+        try
+        {
+            var path = Path.Combine(WebHostEnvironment.WebRootPath, "demo-data", selectedModel.DemoFileName);
+            await using var stream = File.OpenRead(path);
+            uploadPreview = await CsvImportPreviewService.PreviewAsync(stream, selectedModel.DemoFileName, selectedDataSet);
+            uploadStatusMessage = "The selected model's bundled demo CSV was inspected successfully. No data has been persisted.";
+        }
+        catch (Exception exception)
+        {
+            uploadStatusMessage = $"The bundled demo data could not be loaded: {exception.Message}";
+        }
+        finally
+        {
+            isLoadingUpload = false;
+        }
+    }
+
+    private void ClearUploadPreview()
+    {
+        uploadPreview = null;
+        uploadStatusMessage = null;
+    }
+
+    private enum DataWorkspaceTab
+    {
+        CurrentData,
+        Upload,
     }
 }

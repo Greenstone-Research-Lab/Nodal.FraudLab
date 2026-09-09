@@ -202,11 +202,40 @@ h1 {
     line-height: 1.5;
 }
 
+.data-tabs {
+    display: flex;
+    gap: .25rem;
+    max-width: 1080px;
+    margin-top: 1.25rem;
+    padding: .3rem;
+    border: 1px solid #e0e6f0;
+    border-radius: .7rem;
+    background: #edf1f6;
+}
+
+.data-tab {
+    padding: .65rem .9rem;
+    color: #53627a;
+    font: inherit;
+    font-weight: 750;
+    border: 0;
+    border-radius: .45rem;
+    background: transparent;
+    cursor: pointer;
+}
+
+.data-tab--active {
+    color: #17223a;
+    background: #fff;
+    box-shadow: 0 2px 7px rgb(26 45 82 / 10%);
+}
+
 .upload-panel,
 .schema-panel,
 .import-summary,
 .dataset-preview,
-.consistency-panel {
+.consistency-panel,
+.current-data-panel {
     padding: 1.25rem;
     background: #fff;
     border: 1px solid #e0e6f0;
@@ -219,6 +248,7 @@ h1 {
 .import-summary h2,
 .dataset-preview h2,
 .consistency-panel h2,
+.current-data-panel h2,
 .validation-issues h3 {
     margin: 0;
     color: #17223a;
@@ -240,6 +270,29 @@ h1 {
 
 .consistency-panel li + li {
     margin-top: .55rem;
+}
+
+.current-data-panel {
+    max-width: 1080px;
+    margin-top: 1rem;
+}
+
+.current-data-panel > header {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.current-data-panel > header p:last-child {
+    max-width: 650px;
+    margin-bottom: 0;
+    color: #53627a;
+    line-height: 1.55;
+}
+
+.loading-message {
+    color: #53627a;
 }
 
 .file-input {
@@ -468,6 +521,10 @@ h1 {
         display: grid;
         grid-template-columns: 1fr;
         align-items: start;
+    }
+
+    .current-data-panel > header {
+        display: grid;
     }
 
     .import-summary,

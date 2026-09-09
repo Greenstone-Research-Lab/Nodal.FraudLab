@@ -78,9 +78,11 @@ public sealed class CsvImportPreviewService : ICsvImportPreviewService
         Stream content,
         string fileName,
         FraudDataSetKind expectedDataSet,
+        int maximumPreviewRows = 5,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(content);
+        ArgumentOutOfRangeException.ThrowIfNegative(maximumPreviewRows);
 
         var schema = Schemas.SingleOrDefault(candidate => candidate.Model.DataSet == expectedDataSet)
             ?? throw new ArgumentOutOfRangeException(nameof(expectedDataSet), "Select a supported FraudLab model.");
@@ -144,7 +146,7 @@ public sealed class CsvImportPreviewService : ICsvImportPreviewService
             }
 
             validRows++;
-            if (previewRows.Count < 5)
+            if (previewRows.Count < maximumPreviewRows)
             {
                 previewRows.Add(values);
             }

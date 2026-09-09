@@ -8,5 +8,6 @@ public interface ICsvImportPreviewService
         Stream content,
         string fileName,
         FraudDataSetKind expectedDataSet,
+        int maximumPreviewRows = 5,
         CancellationToken cancellationToken = default);
 }
