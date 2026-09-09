@@ -11,12 +11,13 @@
 <section class="next-step">
     <h2>1. Verify Docker Desktop</h2>
     <pre class="setup-code"><code>docker version; docker compose version</code></pre>
-    <h2>2. Start the graph database</h2>
+    <h2>2. Start the local data services</h2>
     <pre class="setup-code"><code>cd C:\path\to\Nodal.FraudLab; docker compose -f .\docker-compose.local.yml up -d; docker compose -f .\docker-compose.local.yml ps</code></pre>
     <p>Open <a href="http://localhost:7474" target="_blank">Neo4j Browser</a> and sign in with <code>neo4j</code> / <code>NodalLocal123!</code>.</p>
+    <p>PostgreSQL is exposed only for local development at <code>localhost:5433</code>, with database <code>fraudlab</code> and user <code>fraudlab</code>.</p>
     <h2>3. Verify connectivity</h2>
-    <pre class="setup-code"><code>Test-NetConnection localhost -Port 7687</code></pre>
+    <pre class="setup-code"><code>Test-NetConnection localhost -Port 7687; Test-NetConnection localhost -Port 5433</code></pre>
     <h2>4. Start FraudLab</h2>
     <pre class="setup-code"><code>dotnet restore .\Nodal.FraudLab.slnx; dotnet run --project .\src\Nodal.FraudLab.Web</code></pre>
-    <div class="callout">These credentials are public local-demo values only. Never reuse them outside local development.</div>
+    <div class="callout">These credentials are public local-demo values only. Never reuse them outside local development. Pulled external source files remain outside Git under <code>data/external</code>.</div>
 </section>

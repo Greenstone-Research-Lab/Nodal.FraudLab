@@ -9,3 +9,5 @@ artifacts/
 .env.*
 !.env.example
 .local/
+data/external/
+data/staging/

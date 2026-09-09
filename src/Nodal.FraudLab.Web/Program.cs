@@ -23,6 +23,8 @@ builder.Services.AddSingleton<ICsvImportPreviewService, CsvImportPreviewService>
 var app = builder.Build();
 var localGraph = app.Configuration.GetSection(LocalGraphOptions.SectionName).Get<LocalGraphOptions>()
     ?? throw new InvalidOperationException("The LocalGraph configuration section is required.");
+var localPostgres = app.Configuration.GetSection(LocalPostgresOptions.SectionName).Get<LocalPostgresOptions>()
+    ?? throw new InvalidOperationException("The LocalPostgres configuration section is required.");
 
 if (!app.Environment.IsDevelopment())
 {
@@ -46,6 +48,15 @@ app.MapGet("/api/setup/neo4j-connection", async (CancellationToken cancellationT
     return result.IsReachable ? Results.Ok(result) : Results.Problem(
         statusCode: StatusCodes.Status503ServiceUnavailable,
         title: "Neo4j Bolt endpoint is not reachable.",
+        detail: result.Message);
+});
+
+app.MapGet("/api/setup/postgres-connection", async (CancellationToken cancellationToken) =>
+{
+    var result = await PostgresConnectionProbe.ProbeAsync(localPostgres.PostgreSql, cancellationToken);
+    return result.IsReachable ? Results.Ok(result) : Results.Problem(
+        statusCode: StatusCodes.Status503ServiceUnavailable,
+        title: "PostgreSQL endpoint is not reachable.",
         detail: result.Message);
 });
 

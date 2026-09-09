@@ -8,8 +8,10 @@
     <p>
         The application health endpoint is available at <code>/api/health</code>.
         The local Neo4j Bolt reachability probe is available at
-        <a href="/api/setup/neo4j-connection" target="_blank">/api/setup/neo4j-connection</a>.
+        <a href="/api/setup/neo4j-connection" target="_blank">/api/setup/neo4j-connection</a>,
+        and the local PostgreSQL reachability probe is available at
+        <a href="/api/setup/postgres-connection" target="_blank">/api/setup/postgres-connection</a>.
     </p>
 
-    <div class="callout">This probe verifies that the configured local Bolt port accepts a TCP connection. Credential validation arrives with the first graph provider.</div>
+    <div class="callout">These probes verify that the configured local ports accept TCP connections. Database credential validation arrives with the first persistence slice.</div>
 </section>

@@ -12,6 +12,20 @@ services:
       - fraudlab_neo4j_data:/data
       - fraudlab_neo4j_logs:/logs
 
+  postgres:
+    image: postgres:17-alpine
+    container_name: nodal-fraudlab-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: fraudlab
+      POSTGRES_USER: fraudlab
+      POSTGRES_PASSWORD: "NodalLocal123!"
+    ports:
+      - "5433:5432"
+    volumes:
+      - fraudlab_postgres_data:/var/lib/postgresql/data
+
 volumes:
   fraudlab_neo4j_data:
   fraudlab_neo4j_logs:
+  fraudlab_postgres_data:
