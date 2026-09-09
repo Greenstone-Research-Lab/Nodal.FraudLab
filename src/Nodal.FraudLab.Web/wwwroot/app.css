@@ -158,10 +158,55 @@ h1 {
     margin-top: 2rem;
 }
 
+.model-selector,
+.property-contract {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    max-width: 1080px;
+    margin-top: 1.5rem;
+    padding: 1.1rem 1.25rem;
+    background: #fff;
+    border: 1px solid #e0e6f0;
+    border-radius: .85rem;
+    box-shadow: 0 8px 28px rgb(26 45 82 / 5%);
+}
+
+.model-selector > div {
+    display: grid;
+    gap: .45rem;
+    min-width: min(100%, 360px);
+}
+
+.model-selector label {
+    color: #53627a;
+    font-size: .84rem;
+    font-weight: 750;
+}
+
+.model-selector select {
+    width: 100%;
+    padding: .68rem .75rem;
+    color: #17223a;
+    font: inherit;
+    border: 1px solid #bfcddd;
+    border-radius: .5rem;
+    background: #fff;
+}
+
+.model-selector p {
+    max-width: 510px;
+    margin: 0;
+    color: #53627a;
+    line-height: 1.5;
+}
+
 .upload-panel,
 .schema-panel,
 .import-summary,
-.dataset-preview {
+.dataset-preview,
+.consistency-panel {
     padding: 1.25rem;
     background: #fff;
     border: 1px solid #e0e6f0;
@@ -173,6 +218,7 @@ h1 {
 .schema-panel h2,
 .import-summary h2,
 .dataset-preview h2,
+.consistency-panel h2,
 .validation-issues h3 {
     margin: 0;
     color: #17223a;
@@ -180,9 +226,20 @@ h1 {
 
 .upload-panel > p,
 .schema-panel > p,
-.import-summary p {
+.import-summary p,
+.consistency-panel li,
+.property-contract p {
     color: #53627a;
     line-height: 1.55;
+}
+
+.consistency-panel ul {
+    margin: 1rem 0 0;
+    padding-left: 1.2rem;
+}
+
+.consistency-panel li + li {
+    margin-top: .55rem;
 }
 
 .file-input {
@@ -294,6 +351,16 @@ h1 {
     margin-top: 1rem;
 }
 
+.property-contract {
+    display: grid;
+    align-items: start;
+    grid-template-columns: minmax(220px, .8fr) minmax(0, 1.45fr);
+}
+
+.property-contract p {
+    margin-bottom: 0;
+}
+
 .dataset-preview > header {
     display: flex;
     align-items: start;
@@ -394,6 +461,13 @@ h1 {
 
     .upload-workspace {
         grid-template-columns: 1fr;
+    }
+
+    .model-selector,
+    .property-contract {
+        display: grid;
+        grid-template-columns: 1fr;
+        align-items: start;
     }
 
     .import-summary,

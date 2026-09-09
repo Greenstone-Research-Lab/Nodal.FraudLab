@@ -7,58 +7,101 @@ public sealed class CsvImportPreviewService : ICsvImportPreviewService
 {
     private static readonly IReadOnlyList<CsvSchemaDefinition> Schemas =
     [
-        new(
+        CreateSchema(
             FraudDataSetKind.CustomerProfile,
-            ["Id", "DisplayName", "OnboardedOn", "CountryCode"],
-            [new("Id"), new("DisplayName"), new("OnboardedOn", IsDateOnly), new("CountryCode")]),
-        new(
+            "Customer profile",
+            "customers.csv",
+            [
+                Property("Id", "string", "Unique customer identifier"),
+                Property("DisplayName", "string", "Non-empty display name"),
+                Property("OnboardedOn", "DateOnly", "ISO date: yyyy-MM-dd", IsDateOnly),
+                Property("CountryCode", "string", "Two-letter country code", IsCountryCode),
+            ]),
+        CreateSchema(
             FraudDataSetKind.FinancialAccount,
-            ["Id", "CustomerId", "AccountType", "OpenedOn", "CurrencyCode"],
-            [new("Id"), new("CustomerId"), new("AccountType"), new("OpenedOn", IsDateOnly), new("CurrencyCode")]),
-        new(
+            "Financial account",
+            "accounts.csv",
+            [
+                Property("Id", "string", "Unique account identifier"),
+                Property("CustomerId", "string", "Customer identifier"),
+                Property("AccountType", "string", "Non-empty account type"),
+                Property("OpenedOn", "DateOnly", "ISO date: yyyy-MM-dd", IsDateOnly),
+                Property("CurrencyCode", "string", "Three-letter currency code", IsCurrencyCode),
+            ]),
+        CreateSchema(
             FraudDataSetKind.Merchant,
-            ["Id", "Name", "MerchantCategoryCode", "CountryCode"],
-            [new("Id"), new("Name"), new("MerchantCategoryCode"), new("CountryCode")]),
-        new(
+            "Merchant",
+            "merchants.csv",
+            [
+                Property("Id", "string", "Unique merchant identifier"),
+                Property("Name", "string", "Non-empty merchant name"),
+                Property("MerchantCategoryCode", "string", "Non-empty merchant category code"),
+                Property("CountryCode", "string", "Two-letter country code", IsCountryCode),
+            ]),
+        CreateSchema(
             FraudDataSetKind.DeviceFingerprint,
-            ["Id", "DeviceType", "OperatingSystem", "TrustLevel"],
-            [new("Id"), new("DeviceType"), new("OperatingSystem"), new("TrustLevel")]),
-        new(
+            "Device fingerprint",
+            "devices.csv",
+            [
+                Property("Id", "string", "Unique device identifier"),
+                Property("DeviceType", "string", "Non-empty device type"),
+                Property("OperatingSystem", "string", "Non-empty operating system"),
+                Property("TrustLevel", "string", "Non-empty trust level"),
+            ]),
+        CreateSchema(
             FraudDataSetKind.NetworkAddress,
-            ["Id", "CountryCode", "NetworkType"],
-            [new("Id"), new("CountryCode"), new("NetworkType")]),
-        new(
+            "Network address",
+            "network-addresses.csv",
+            [
+                Property("Id", "string", "Unique network identifier"),
+                Property("CountryCode", "string", "Two-letter country code", IsCountryCode),
+                Property("NetworkType", "string", "Non-empty network type"),
+            ]),
+        CreateSchema(
             FraudDataSetKind.FinancialTransaction,
-            ["Id", "AccountId", "MerchantId", "Amount", "CurrencyCode", "OccurredAt", "Status"],
-            [new("Id"), new("AccountId"), new("MerchantId"), new("Amount", IsDecimal), new("CurrencyCode"), new("OccurredAt", IsDateTimeOffset), new("Status")]),
+            "Financial transaction",
+            "transactions.csv",
+            [
+                Property("Id", "string", "Unique transaction identifier"),
+                Property("AccountId", "string", "Account identifier"),
+                Property("MerchantId", "string", "Merchant identifier"),
+                Property("Amount", "decimal", "Positive invariant decimal, for example 1250.00", IsPositiveDecimal),
+                Property("CurrencyCode", "string", "Three-letter currency code", IsCurrencyCode),
+                Property("OccurredAt", "DateTimeOffset", "ISO 8601 timestamp with offset", IsDateTimeOffset),
+                Property("Status", "string", "Non-empty transaction status"),
+            ]),
     ];
+
+    public IReadOnlyList<CsvModelDefinition> SupportedModels => Schemas.Select(schema => schema.Model).ToArray();
 
     public async Task<CsvDataSetPreview> PreviewAsync(
         Stream content,
         string fileName,
+        FraudDataSetKind expectedDataSet,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(content);
+
+        var schema = Schemas.SingleOrDefault(candidate => candidate.Model.DataSet == expectedDataSet)
+            ?? throw new ArgumentOutOfRangeException(nameof(expectedDataSet), "Select a supported FraudLab model.");
 
         using var reader = new StreamReader(content, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
         var headerLine = await reader.ReadLineAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(headerLine))
         {
-            return CreateUnknownPreview(fileName, [], [new(null, "The CSV file does not contain a header row.")]);
+            return CreateInvalidPreview(fileName, schema, [], "The CSV file does not contain a header row.");
         }
 
         var columns = ParseLine(headerLine).Select(column => column.Trim()).ToArray();
-        var schema = Schemas.SingleOrDefault(candidate => candidate.Matches(columns));
-        if (schema is null)
+        var headerIssues = schema.ValidateHeader(columns);
+        if (headerIssues.Count > 0)
         {
-            return CreateUnknownPreview(
-                fileName,
-                columns,
-                [new(null, "The column set does not match a supported FraudLab domain model.")]);
+            return new CsvDataSetPreview(fileName, schema.Model.DataSet, 0, 0, columns, [], headerIssues.Select(message => new CsvImportIssue(null, message)).ToArray());
         }
 
         var previewRows = new List<IReadOnlyDictionary<string, string>>();
         var issues = new List<CsvImportIssue>();
+        var identifiers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var totalRows = 0;
         var validRows = 0;
         var rowNumber = 1;
@@ -83,7 +126,17 @@ public sealed class CsvImportPreviewService : ICsvImportPreviewService
                 .Select((column, index) => new KeyValuePair<string, string>(column, fields[index].Trim()))
                 .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
 
-            var rowIssues = schema.Validate(values);
+            var rowIssues = schema.ValidateRow(values).ToList();
+            var identifier = values["Id"];
+            if (identifiers.TryGetValue(identifier, out var originalRow))
+            {
+                rowIssues.Add($"Id '{identifier}' duplicates row {originalRow}.");
+            }
+            else if (!string.IsNullOrWhiteSpace(identifier))
+            {
+                identifiers.Add(identifier, rowNumber);
+            }
+
             if (rowIssues.Count > 0)
             {
                 issues.AddRange(rowIssues.Select(message => new CsvImportIssue(rowNumber, message)));
@@ -102,23 +155,50 @@ public sealed class CsvImportPreviewService : ICsvImportPreviewService
             issues.Add(new CsvImportIssue(null, "The CSV file does not contain any data rows."));
         }
 
-        return new CsvDataSetPreview(fileName, schema.DataSet, totalRows, validRows, columns, previewRows, issues);
+        return new CsvDataSetPreview(fileName, schema.Model.DataSet, totalRows, validRows, columns, previewRows, issues);
     }
 
-    private static CsvDataSetPreview CreateUnknownPreview(
+    private static CsvSchemaDefinition CreateSchema(
+        FraudDataSetKind dataSet,
+        string displayName,
+        string demoFileName,
+        IReadOnlyList<CsvFieldDefinition> fields) =>
+        new(
+            new CsvModelDefinition(
+                dataSet,
+                displayName,
+                demoFileName,
+                fields.Select(field => new CsvModelPropertyDefinition(field.Name, field.DotNetType, true, field.ValidationRule)).ToArray()),
+            fields);
+
+    private static CsvFieldDefinition Property(
+        string name,
+        string dotNetType,
+        string validationRule,
+        Func<string, bool>? formatValidator = null) =>
+        new(name, dotNetType, validationRule, formatValidator);
+
+    private static CsvDataSetPreview CreateInvalidPreview(
         string fileName,
+        CsvSchemaDefinition schema,
         IReadOnlyList<string> columns,
-        IReadOnlyList<CsvImportIssue> issues) =>
-        new(fileName, FraudDataSetKind.Unknown, 0, 0, columns, [], issues);
+        string message) =>
+        new(fileName, schema.Model.DataSet, 0, 0, columns, [], [new CsvImportIssue(null, message)]);
 
     private static bool IsDateOnly(string value) =>
         DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
 
-    private static bool IsDecimal(string value) =>
-        decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out _);
+    private static bool IsPositiveDecimal(string value) =>
+        decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount) && amount > 0;
 
     private static bool IsDateTimeOffset(string value) =>
         DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out _);
+
+    private static bool IsCountryCode(string value) =>
+        value.Length == 2 && value.All(char.IsLetter);
+
+    private static bool IsCurrencyCode(string value) =>
+        value.Length == 3 && value.All(char.IsLetter);
 
     private static List<string> ParseLine(string line)
     {
@@ -156,28 +236,45 @@ public sealed class CsvImportPreviewService : ICsvImportPreviewService
         return fields;
     }
 
-    private sealed record CsvSchemaDefinition(
-        FraudDataSetKind DataSet,
-        IReadOnlyList<string> ExpectedColumns,
-        IReadOnlyList<CsvFieldDefinition> Fields)
+    private sealed record CsvSchemaDefinition(CsvModelDefinition Model, IReadOnlyList<CsvFieldDefinition> Fields)
     {
-        public bool Matches(IReadOnlyList<string> columns) =>
-            columns.Count == ExpectedColumns.Count &&
-            columns.All(column => ExpectedColumns.Contains(column, StringComparer.OrdinalIgnoreCase));
+        public IReadOnlyList<string> ValidateHeader(IReadOnlyList<string> columns)
+        {
+            var issues = new List<string>();
+            var expectedColumns = Fields.Select(field => field.Name).ToArray();
+            if (columns.Distinct(StringComparer.OrdinalIgnoreCase).Count() != columns.Count)
+            {
+                issues.Add("The CSV header contains duplicate column names.");
+            }
 
-        public IReadOnlyList<string> Validate(IReadOnlyDictionary<string, string> values) =>
+            var missingColumns = expectedColumns.Where(expected => !columns.Contains(expected, StringComparer.OrdinalIgnoreCase)).ToArray();
+            if (missingColumns.Length > 0)
+            {
+                issues.Add($"Missing required column(s): {string.Join(", ", missingColumns)}.");
+            }
+
+            var unexpectedColumns = columns.Where(column => !expectedColumns.Contains(column, StringComparer.OrdinalIgnoreCase)).ToArray();
+            if (unexpectedColumns.Length > 0)
+            {
+                issues.Add($"Unexpected column(s) for {Model.DisplayName}: {string.Join(", ", unexpectedColumns)}.");
+            }
+
+            return issues;
+        }
+
+        public IReadOnlyList<string> ValidateRow(IReadOnlyDictionary<string, string> values) =>
             Fields
                 .Where(field => !field.IsValid(values[field.Name]))
-                .Select(field => field.ErrorMessage)
+                .Select(field => $"{field.Name} is missing or invalid. Rule: {field.ValidationRule}.")
                 .ToArray();
     }
 
-    private sealed record CsvFieldDefinition(string Name, Func<string, bool>? FormatValidator = null)
+    private sealed record CsvFieldDefinition(
+        string Name,
+        string DotNetType,
+        string ValidationRule,
+        Func<string, bool>? FormatValidator = null)
     {
-        public string ErrorMessage => FormatValidator is null
-            ? $"{Name} is required."
-            : $"{Name} is missing or has an invalid format.";
-
         public bool IsValid(string value) =>
             !string.IsNullOrWhiteSpace(value) && (FormatValidator?.Invoke(value) ?? true);
     }

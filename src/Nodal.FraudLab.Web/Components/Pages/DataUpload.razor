@@ -7,34 +7,73 @@
 
 <section class="page-heading">
     <p class="eyebrow">SOURCE ONBOARDING</p>
-    <h1>Validate CSV data against FraudLab models.</h1>
-    <p>Upload one or more CSV files, or load the bundled synthetic dataset. This step validates the schema and values in memory. It does not yet write to Neo4j or another database.</p>
+    <h1>Choose a model, then validate its CSV.</h1>
+    <p>Each upload has one explicit target model. FraudLab checks the expected header, C# value types, required properties, unique identifiers, and model-specific consistency rules before data can move into the graph.</p>
+</section>
+
+<section class="model-selector">
+    <div>
+        <label for="data-set">Target domain model</label>
+        <select id="data-set" @bind="selectedDataSet" @bind:after="ClearPreview">
+            @foreach (var model in models)
+            {
+                <option value="@model.DataSet">@model.DisplayName</option>
+            }
+        </select>
+    </div>
+    <p><strong>@selectedModel.DisplayName</strong> — Upload only a CSV shaped for this model. The selected model cannot be inferred or changed by the file.</p>
 </section>
 
 <section class="upload-workspace">
     <div class="upload-panel">
-        <h2>Upload CSV files</h2>
-        <p>Choose up to six files. Each file must exactly match one of the supported domain models.</p>
-        <InputFile OnChange="HandleUploadAsync" multiple accept=".csv,text/csv" class="file-input" />
+        <h2>Upload @selectedModel.DisplayName CSV</h2>
+        <p>Choose one CSV file. Its header must match the property table exactly; column order is flexible.</p>
+        <InputFile OnChange="HandleUploadAsync" accept=".csv,text/csv" class="file-input" />
         <div class="upload-actions">
-            <button class="primary-button" @onclick="LoadBundledDemoAsync" disabled="@isLoading">Load bundled demo data</button>
-            @if (previews.Count > 0)
+            <button class="primary-button" @onclick="LoadBundledDemoAsync" disabled="@isLoading">Load @selectedModel.DisplayName demo</button>
+            @if (preview is not null)
             {
                 <button class="secondary-button" @onclick="ClearPreview" disabled="@isLoading">Clear preview</button>
             }
         </div>
-        <p class="upload-help">Maximum file size: 2 MB. Dates use <code>yyyy-MM-dd</code>; transaction timestamps use ISO 8601; amounts use an invariant decimal point.</p>
+        <p class="upload-help">Maximum file size: 2 MB. This screen validates only the selected CSV. Cross-model reference checks run when the complete graph import set is submitted.</p>
     </div>
 
-    <aside class="schema-panel">
-        <h2>Supported models</h2>
-        <ul class="schema-list">
-            @foreach (var schema in SupportedSchemas)
-            {
-                <li><strong>@schema.Name</strong><span>@schema.Columns</span></li>
-            }
+    <aside class="consistency-panel">
+        <h2>Consistency checks</h2>
+        <ul>
+            <li>Required headers are present and no unknown or duplicate headers exist.</li>
+            <li>Required values match their declared .NET data types.</li>
+            <li><code>Id</code> values are unique within the CSV file.</li>
+            <li>Transaction amounts are positive and timestamps include an offset.</li>
         </ul>
     </aside>
+</section>
+
+<section class="property-contract">
+    <div>
+        <p class="eyebrow">CSV CONTRACT</p>
+        <h2>@selectedModel.DisplayName properties</h2>
+        <p>The column names below form the upload contract. This is the same contract used by the validator.</p>
+    </div>
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr><th>CSV column / property</th><th>.NET type</th><th>Required</th><th>Validation rule</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var property in selectedModel.Properties)
+                {
+                    <tr>
+                        <td><code>@property.Name</code></td>
+                        <td><code>@property.DotNetType</code></td>
+                        <td>@(property.IsRequired ? "Yes" : "No")</td>
+                        <td>@property.ValidationRule</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </section>
 
 @if (!string.IsNullOrWhiteSpace(statusMessage))
@@ -42,122 +81,103 @@
     <p class="upload-status" role="status">@statusMessage</p>
 }
 
-@if (previews.Count > 0)
+@if (preview is not null)
 {
-    <section class="import-summary">
-        <div>
-            <p class="eyebrow">PREVIEW RESULT</p>
-            <h2>@previews.Count file(s) inspected</h2>
-            <p>Valid rows can move to the graph-import step once reference integrity is checked across the complete dataset.</p>
-        </div>
-        <div class="preview-totals">
-            <span><strong>@previews.Sum(preview => preview.TotalRows)</strong>Total rows</span>
-            <span><strong>@previews.Sum(preview => preview.ValidRows)</strong>Valid rows</span>
-            <span><strong>@previews.Sum(preview => preview.Issues.Count)</strong>Issues</span>
-        </div>
-    </section>
+    <section class="dataset-preview">
+        <header>
+            <div>
+                <p class="eyebrow">@preview.DataSet</p>
+                <h2>@preview.FileName</h2>
+            </div>
+            <span class="validation-state @(preview.IsReadyForImport ? "validation-state--ready" : "validation-state--review")">
+                @(preview.IsReadyForImport ? "Schema and consistency checks passed" : "Needs review")
+            </span>
+        </header>
 
-    @foreach (var preview in previews)
-    {
-        <section class="dataset-preview">
-            <header>
-                <div>
-                    <p class="eyebrow">@preview.DataSet</p>
-                    <h2>@preview.FileName</h2>
-                </div>
-                <span class="validation-state @(preview.IsReadyForImport ? "validation-state--ready" : "validation-state--review")">
-                    @(preview.IsReadyForImport ? "Ready for import" : "Needs review")
-                </span>
-            </header>
+        <dl class="dataset-stats">
+            <div><dt>Rows read</dt><dd>@preview.TotalRows</dd></div>
+            <div><dt>Valid rows</dt><dd>@preview.ValidRows</dd></div>
+            <div><dt>Row issues</dt><dd>@preview.InvalidRows</dd></div>
+        </dl>
 
-            <dl class="dataset-stats">
-                <div><dt>Rows read</dt><dd>@preview.TotalRows</dd></div>
-                <div><dt>Valid rows</dt><dd>@preview.ValidRows</dd></div>
-                <div><dt>Row issues</dt><dd>@preview.InvalidRows</dd></div>
-            </dl>
-
-            @if (preview.PreviewRows.Count > 0)
-            {
-                <div class="table-scroll">
-                    <table>
-                        <thead>
+        @if (preview.PreviewRows.Count > 0)
+        {
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            @foreach (var column in preview.Columns)
+                            {
+                                <th>@column</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in preview.PreviewRows)
+                        {
                             <tr>
                                 @foreach (var column in preview.Columns)
                                 {
-                                    <th>@column</th>
+                                    <td>@row[column]</td>
                                 }
                             </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var row in preview.PreviewRows)
-                            {
-                                <tr>
-                                    @foreach (var column in preview.Columns)
-                                    {
-                                        <td>@row[column]</td>
-                                    }
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-
-            @if (preview.Issues.Count > 0)
-            {
-                <div class="validation-issues">
-                    <h3>Validation issues</h3>
-                    <ul>
-                        @foreach (var issue in preview.Issues.Take(8))
-                        {
-                            <li>@(issue.RowNumber is null ? "File" : $"Row {issue.RowNumber}"): @issue.Message</li>
                         }
-                    </ul>
-                    @if (preview.Issues.Count > 8)
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        @if (preview.Issues.Count > 0)
+        {
+            <div class="validation-issues">
+                <h3>Validation issues</h3>
+                <ul>
+                    @foreach (var issue in preview.Issues.Take(10))
                     {
-                        <p>Only the first eight issues are displayed.</p>
+                        <li>@(issue.RowNumber is null ? "File" : $"Row {issue.RowNumber}"): @issue.Message</li>
                     }
-                </div>
-            }
-        </section>
-    }
+                </ul>
+                @if (preview.Issues.Count > 10)
+                {
+                    <p>Only the first ten issues are displayed.</p>
+                }
+            </div>
+        }
+    </section>
 }
 
 @code {
     private const long MaximumFileBytes = 2 * 1024 * 1024;
-    private readonly List<CsvDataSetPreview> previews = [];
+    private IReadOnlyList<CsvModelDefinition> models = [];
+    private CsvDataSetPreview? preview;
+    private FraudDataSetKind selectedDataSet;
     private bool isLoading;
     private string? statusMessage;
 
-    private static readonly IReadOnlyList<(string Name, string Columns)> SupportedSchemas =
-    [
-        ("Customer profile", "Id, DisplayName, OnboardedOn, CountryCode"),
-        ("Financial account", "Id, CustomerId, AccountType, OpenedOn, CurrencyCode"),
-        ("Merchant", "Id, Name, MerchantCategoryCode, CountryCode"),
-        ("Device fingerprint", "Id, DeviceType, OperatingSystem, TrustLevel"),
-        ("Network address", "Id, CountryCode, NetworkType"),
-        ("Financial transaction", "Id, AccountId, MerchantId, Amount, CurrencyCode, OccurredAt, Status"),
-    ];
+    private CsvModelDefinition selectedModel => models.Single(model => model.DataSet == selectedDataSet);
+
+    protected override void OnInitialized()
+    {
+        models = CsvImportPreviewService.SupportedModels;
+        selectedDataSet = models[0].DataSet;
+    }
 
     private async Task HandleUploadAsync(InputFileChangeEventArgs eventArgs)
     {
         isLoading = true;
         statusMessage = null;
-        previews.Clear();
+        preview = null;
 
         try
         {
-            foreach (var file in eventArgs.GetMultipleFiles(6))
-            {
-                await using var stream = file.OpenReadStream(MaximumFileBytes);
-                previews.Add(await CsvImportPreviewService.PreviewAsync(stream, file.Name));
-            }
-
-            statusMessage = "CSV files were inspected in memory. No data has been persisted.";
+            var file = eventArgs.File;
+            await using var stream = file.OpenReadStream(MaximumFileBytes);
+            preview = await CsvImportPreviewService.PreviewAsync(stream, file.Name, selectedDataSet);
+            statusMessage = "The selected CSV was inspected in memory. No data has been persisted.";
         }
         catch (Exception exception)
         {
-            statusMessage = $"The files could not be inspected: {exception.Message}";
+            statusMessage = $"The CSV file could not be inspected: {exception.Message}";
         }
         finally
         {
@@ -169,18 +189,14 @@
     {
         isLoading = true;
         statusMessage = null;
-        previews.Clear();
+        preview = null;
 
         try
         {
-            var directory = Path.Combine(WebHostEnvironment.WebRootPath, "demo-data");
-            foreach (var path in Directory.EnumerateFiles(directory, "*.csv").OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
-            {
-                await using var stream = File.OpenRead(path);
-                previews.Add(await CsvImportPreviewService.PreviewAsync(stream, Path.GetFileName(path)));
-            }
-
-            statusMessage = "The bundled synthetic dataset was inspected successfully. No data has been persisted.";
+            var path = Path.Combine(WebHostEnvironment.WebRootPath, "demo-data", selectedModel.DemoFileName);
+            await using var stream = File.OpenRead(path);
+            preview = await CsvImportPreviewService.PreviewAsync(stream, selectedModel.DemoFileName, selectedDataSet);
+            statusMessage = "The selected model's bundled demo CSV was inspected successfully. No data has been persisted.";
         }
         catch (Exception exception)
         {
@@ -194,7 +210,7 @@
 
     private void ClearPreview()
     {
-        previews.Clear();
+        preview = null;
         statusMessage = null;
     }
 }
