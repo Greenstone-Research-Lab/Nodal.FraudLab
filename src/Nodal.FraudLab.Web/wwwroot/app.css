@@ -116,6 +116,40 @@ h1 {
     margin: .65rem 0;
 }
 
+.primary-action {
+    display: inline-block;
+    margin-top: .75rem;
+    padding: .7rem 1rem;
+    color: #fff;
+    font-weight: 700;
+    border-radius: .5rem;
+    background: #216b5b;
+    text-decoration: none;
+}
+
+.callout {
+    max-width: 700px;
+    margin-top: 1.5rem;
+    padding: 1rem;
+    color: #4d5d76;
+    line-height: 1.55;
+    border-left: 4px solid #59e5bb;
+    background: #edf9f5;
+}
+
+.setup-code {
+    overflow-x: auto;
+    padding: 1rem;
+    color: #dbe7ff;
+    line-height: 1.55;
+    border-radius: .65rem;
+    background: #111a2e;
+}
+
+.setup-code code {
+    color: inherit;
+}
+
 @media (max-width: 720px) {
     .metric-grid {
         grid-template-columns: 1fr;

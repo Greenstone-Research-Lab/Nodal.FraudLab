@@ -1,4 +1,5 @@
 using Nodal.FraudLab.Web.Components;
+using Nodal.FraudLab.Web.Setup;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,6 +7,8 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 var app = builder.Build();
+var localGraph = app.Configuration.GetSection(LocalGraphOptions.SectionName).Get<LocalGraphOptions>()
+    ?? throw new InvalidOperationException("The LocalGraph configuration section is required.");
 
 if (!app.Environment.IsDevelopment())
 {
@@ -22,6 +25,15 @@ app.MapGet("/api/health", () => Results.Ok(new
     Status = "Template",
     UtcNow = DateTimeOffset.UtcNow,
 }));
+
+app.MapGet("/api/setup/neo4j-connection", async (CancellationToken cancellationToken) =>
+{
+    var result = await Neo4jConnectionProbe.ProbeAsync(localGraph.Neo4j, cancellationToken);
+    return result.IsReachable ? Results.Ok(result) : Results.Problem(
+        statusCode: StatusCodes.Status503ServiceUnavailable,
+        title: "Neo4j Bolt endpoint is not reachable.",
+        detail: result.Message);
+});
 
 app.MapGet("/api/fraud-cases", () => Results.StatusCode(StatusCodes.Status501NotImplemented));
 app.MapGet("/api/graph-evidence", () => Results.StatusCode(StatusCodes.Status501NotImplemented));

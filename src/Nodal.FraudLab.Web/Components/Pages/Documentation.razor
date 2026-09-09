@@ -1,0 +1,22 @@
+@page "/docs"
+
+<PageTitle>Local setup guide</PageTitle>
+
+<section class="page-heading">
+    <p class="eyebrow">GETTING STARTED</p>
+    <h1>Run FraudLab locally.</h1>
+    <p>This local profile is a disposable development environment, not production infrastructure.</p>
+</section>
+
+<section class="next-step">
+    <h2>1. Verify Docker Desktop</h2>
+    <pre class="setup-code"><code>docker version; docker compose version</code></pre>
+    <h2>2. Start the graph database</h2>
+    <pre class="setup-code"><code>cd C:\path\to\Nodal.FraudLab; docker compose -f .\docker-compose.local.yml up -d; docker compose -f .\docker-compose.local.yml ps</code></pre>
+    <p>Open <a href="http://localhost:7474" target="_blank">Neo4j Browser</a> and sign in with <code>neo4j</code> / <code>NodalLocal123!</code>.</p>
+    <h2>3. Verify connectivity</h2>
+    <pre class="setup-code"><code>Test-NetConnection localhost -Port 7687</code></pre>
+    <h2>4. Start FraudLab</h2>
+    <pre class="setup-code"><code>dotnet restore .\Nodal.FraudLab.slnx; dotnet run --project .\src\Nodal.FraudLab.Web</code></pre>
+    <div class="callout">These credentials are public local-demo values only. Never reuse them outside local development.</div>
+</section>

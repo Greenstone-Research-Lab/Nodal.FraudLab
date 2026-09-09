@@ -6,9 +6,9 @@
     <p class="eyebrow">OBSERVATORY / FRAUD DETECTION</p>
     <h1>Evidence-first fraud investigation.</h1>
     <p>
-        This public starter contains no graph provider, source connection, or
-        detection logic yet. It is the clean UI and API boundary that will host
-        those capabilities in the next implementation slice.
+        Build the local demo in four clear stages: start the graph database,
+        verify the connection, load synthetic financial data, and examine graph
+        evidence behind a fraud case.
     </p>
 </section>
 
@@ -16,7 +16,7 @@
     <article>
         <span>Connected sources</span>
         <strong>0</strong>
-        <small>Graph connection is not configured.</small>
+        <small>Start the local Neo4j environment first.</small>
     </article>
     <article>
         <span>Open fraud cases</span>
@@ -31,11 +31,13 @@
 </section>
 
 <section class="next-step">
-    <h2>Implementation sequence</h2>
+    <h2>Local setup roadmap</h2>
     <ol>
-        <li>Connect a synthetic financial source.</li>
-        <li>Map source entities to the fraud domain model.</li>
-        <li>Build graph evidence and deterministic detection rules.</li>
-        <li>Render a case narrative with inspectable evidence.</li>
+        <li>Install Docker Desktop and confirm Docker Engine is running.</li>
+        <li>Start Neo4j with the supplied local-only Compose profile.</li>
+        <li>Run the PowerShell connection check and then start this application.</li>
+        <li>Load synthetic data, create graph evidence, and inspect a fraud case.</li>
     </ol>
+
+    <a class="primary-action" href="/docs">Open the setup guide</a>
 </section>
