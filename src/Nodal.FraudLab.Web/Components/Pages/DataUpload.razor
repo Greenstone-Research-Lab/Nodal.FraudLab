@@ -1,14 +1,15 @@
 @page "/data-upload"
+@page "/data-pull"
 @rendermode InteractiveServer
 @inject ICsvImportPreviewService CsvImportPreviewService
 @inject IWebHostEnvironment WebHostEnvironment
 
-<PageTitle>Data upload</PageTitle>
+<PageTitle>Data pulls</PageTitle>
 
 <section class="page-heading">
-    <p class="eyebrow">SOURCE ONBOARDING</p>
-    <h1>Inspect current data or stage a new CSV.</h1>
-    <p>Start from the data already available for a model, then use the separate upload flow when you want to validate a replacement or additional CSV.</p>
+    <p class="eyebrow">DATA PULL WORKSPACE</p>
+    <h1>Inspect available data or stage a new CSV.</h1>
+    <p>Data pulls will retrieve, validate and normalize external source data. The separate CSV staging flow remains available for controlled local experiments.</p>
 </section>
 
 <section class="model-selector">
@@ -29,7 +30,7 @@
         Current data
     </button>
     <button class="data-tab @(activeTab == DataWorkspaceTab.Upload ? "data-tab--active" : string.Empty)" @onclick="ShowUpload" role="tab" aria-selected="@(activeTab == DataWorkspaceTab.Upload)">
-        Upload CSV
+        Stage CSV
     </button>
 </div>
 
@@ -108,7 +109,7 @@ else
 {
     <section class="upload-workspace">
         <div class="upload-panel">
-            <h2>Upload @selectedModel.DisplayName CSV</h2>
+            <h2>Stage @selectedModel.DisplayName CSV</h2>
             <p>Choose one CSV file. Its header must contain the selected model’s property names; column order is flexible.</p>
             <InputFile OnChange="HandleUploadAsync" accept=".csv,text/csv" class="file-input" />
             <div class="upload-actions">
